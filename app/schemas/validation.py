@@ -11,7 +11,7 @@ class PredictionRequest(BaseModel):
     )
 
     @validator('text')
-    def text_must_be_valid(self, cls, v: str) -> str:
+    def text_must_be_valid(cls, v: str) -> str:
         """Additional validation for text field"""
         #strip whitespace
         v = v.strip()
