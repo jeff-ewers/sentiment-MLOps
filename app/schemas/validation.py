@@ -26,12 +26,13 @@ class PredictionResponse(BaseModel):
     confidence: float = Field(..., ge=0, le=1, description= "Model confidence score")
     model_version: str = Field(default='v1', description='Model version')
 
-    class Config:
-        schema_extra = {
-            "example": {
-                "text": "This project is going well!",
-                "sentiment": "POSITIVE",
-                "confidence": 0.95,
-                "model_version": "v1"
+    model_config = {
+            "json_schema_extra": {
+                "example": {
+                    "text": "This project is going well!",
+                    "sentiment": "POSITIVE",
+                    "confidence": 0.95,
+                    "model_version": "v1"
+                }
             }
         }
