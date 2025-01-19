@@ -21,15 +21,19 @@ def test_model():
         sentiment_analyzer = pipeline("sentiment-analysis")
 
         #get text from request or default
-        data = request.json or {}
-        text = data.get('text', 'This is a test sentence.')
+        if not request.json:
+            return jsonify({'error': 'No JSON data received'}), 400
+        text = request.json.get('text')
+        if not text:
+            return jsonify({'error': 'No text field in JSON data'}), 400
 
         #run inference
         result = sentiment_analyzer(text)
 
         return jsonify({
             'text': text,
-            'result': result[0]
+            'result': result[0],
+            'request_data': request.json
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
