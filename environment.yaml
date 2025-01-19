@@ -1,0 +1,43 @@
+name: sentiment-mlops
+channels: 
+- conda-forge
+- defaults
+dependencies: 
+- python=3.9
+
+#web fw and api
+- flask=2.0.1
+- gunicorn
+- pydantic
+
+#db
+- sqlalchemy
+- psycopg2
+- redis-py
+
+#ml
+- pytorch
+- transformers
+- scikit-learn
+- numpy
+- pandas
+
+#monitoring / metrics
+- prometheus_client
+- python-dotenv
+
+#testing
+- pytest
+- pytest-cov
+
+#devtools
+- black
+- flake8
+- jupyter
+
+#cloud
+- pip
+- pip:
+  - google-cloud-storage
+  - google-cloud-monitoring
+  - google-cloud-logging
