@@ -38,7 +38,7 @@ def test_model():
 
 
         #run inference
-        result = sentiment_analyzer(text)
+        result = sentiment_analyzer(request_data.text)
 
         response = PredictionResponse(
             text=request_data.text,
