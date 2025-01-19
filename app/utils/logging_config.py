@@ -2,6 +2,7 @@ import logging
 import sys
 from typing import Dict, Any
 import json
+from pathlib import Path
 
 class JsonFormatter(logging.Formatter):
     """Format logs as JSON for better processing"""
@@ -25,6 +26,10 @@ class JsonFormatter(logging.Formatter):
     
 def setup_logging(level: int = logging.INFO) -> logging.Logger:
     """Setup structured logging for the application"""
+    log_dir = Path('logs')
+    log_dir.mkdir(exist_ok=True)
+
+
     logger = logging.getLogger('sentiment-mlops')
     logger.setLevel(level)
 
@@ -37,7 +42,7 @@ def setup_logging(level: int = logging.INFO) -> logging.Logger:
     logger.addHandler(console_handler)
 
     # file handler with persistent logs
-    file_handler = logging.FileHandler(sys.stdout)
+    file_handler = logging.FileHandler(log_dir / 'app.log')
     file_handler.setFormatter(JsonFormatter())
     logger.addHandler(file_handler)
 
