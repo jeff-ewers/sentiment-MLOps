@@ -64,7 +64,7 @@ def predict():
             confidence=response.confidence,
             model_version=response.model_version,
             raw_model_output=result[0],
-            metadata={"request_timestamp": datetime.utcnow().isoformat()}
+            request_metadata={"request_timestamp": datetime.utcnow().isoformat()}
         )
 
         #log prediction

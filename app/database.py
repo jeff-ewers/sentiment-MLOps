@@ -29,7 +29,7 @@ class Prediction(Base):
     model_version = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     raw_model_output = Column(JSON)
-    metadata = Column(JSON)
+    request_metadata = Column(JSON)
 
 #fx to get db session
 def get_db():
