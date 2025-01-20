@@ -115,5 +115,91 @@ class BayesianDriftDetector:
         post_samples = post_dist.rvs(n_samples)
         return np.mean(post_samples > prior_samples)
 
+    def detect_confidence_drift(self, 
+                                predictions: List[Prediction]) -> List[ChangePoint]:
+        """
+        Detect changes in confidence score distribution using
+        Bayesian inference with Normal-Gamma conjugate prior
+        """
 
+        if not predictions:
+            return []
+        
+        sorted_preds = sorted(predictions, key=lambda x: x.created_at)
+        changepoints = List[ChangePoint] = []
+
+        #sliding window analysis
+        window_start = sorted_preds[0].created_at
+        while window_start < sorted_preds[-1].created_at:
+            window_end = window_start + self.window_size
+
+            #get predictions in current window
+            window_preds = [p for p in sorted_preds
+                            if window_start <= p.created_at < window_end]
+            
+            if len(window_preds) < 50: #check for minimum sample size
+                window_start += self.window_size
+                continue
+            
+            #calculate statistics for current window
+            conf_scores = [p.confidence for p in window_preds]
+            prior_mean = np.mean(conf_scores)
+            prior_var = np.var(conf_scores)
+
+            #check next window
+            next_window_end = window_end + self.window_size
+            next_window_preds = [p for p in sorted_preds
+                                 if window_end <= p.created_at < next_window_end]
+            
+            if len(next_window_preds) < 50: #check for minimum sample size
+                window_start += self.window_size
+                continue
+
+            #calculate statistics for next window
+            next_conf_scores = [p.confidence for p in next_window_preds]
+            post_mean = np.mean(next_conf_scores)
+            post_var = np.var(next_conf_scores)
+
+            #use normal distribution approximation for large samples
+            change_prob = self.calculate_normal_change_probability(
+                prior_mean, prior_var, len(conf_scores),
+                post_mean, post_var, len(next_conf_scores)
+            )
+
+            if change_prob >= self.min_probability:
+                changepoints.append(
+                    ChangePoint(
+                        timestamp=window_end,
+                        confidence=change_prob,
+                        metric="confidence_distribution",
+                        before_params={
+                            "mean": prior_mean,
+                            "variance": prior_var,
+                            "n_samples": len(conf_scores)
+                        },
+                        after_params={
+                            "mean": post_mean,
+                            "variance": post_var,
+                            "n_samples": len(next_conf_scores)
+                        }
+                    )
+                )
+
+            window_start += self.window_size
+        return changepoints
+    
+    def calculate_normal_change_probability(self,
+                                            prior_mean: float,
+                                            prior_var: float,
+                                            prior_n: int,
+                                            post_mean: float,
+                                            post_var: float,
+                                            post_n: int) -> float:
+        """Calculate probability of change for normal distributions"""
+        #use Welch's t-test for unequal variances
+        t_stat, p_value = stats.ttest_ind_from_stats(
+            prior_mean, np.sqrt(prior_var), prior_n,
+            post_mean, np.sqrt(post_var), post_n, equal_var=False
+        )
+        return 1 - p_value #convert p-value to probability of change
 
