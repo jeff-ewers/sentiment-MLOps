@@ -4,8 +4,8 @@ import torch
 from datetime import datetime, timedelta
 from schemas.validation import PredictionRequest, PredictionResponse
 from utils.logging_config import setup_logging
-from database import init_db, get_db
-from repositories.prediction_repository import PredictionRepository
+from app.database import init_db, get_db
+from app.repositories.prediction_repository import PredictionRepository
 from pydantic import ValidationError
 
 app = Flask(__name__)
