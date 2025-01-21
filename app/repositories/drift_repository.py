@@ -3,7 +3,7 @@ from sqlalchemy import Column, Integer, String, Float, DateTime, JSON
 from sqlalchemy.orm import Session 
 from datetime import datetime, timedelta
 from typing import List, Optional
-from app.database import Base
+from app.database_base import Base
 
 class DriftChangePoint(Base):
     """Model for storing detected drift changepoints"""
