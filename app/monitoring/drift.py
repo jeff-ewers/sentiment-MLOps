@@ -126,7 +126,7 @@ class BayesianDriftDetector:
             return []
         
         sorted_preds = sorted(predictions, key=lambda x: x.created_at)
-        changepoints = List[ChangePoint] = []
+        changepoints: List[ChangePoint] = []
 
         #sliding window analysis
         window_start = sorted_preds[0].created_at

@@ -49,7 +49,7 @@ class DriftRepository:
     def get_recent_changepoints(self,
                                 hours: int = 168, #prior week
                                 metric: Optional[str] = None,
-                                model_version: Optional[str] = None) -> List[DriftChangePoint]:
+                                model_version: str = None) -> List[DriftChangePoint]:
         """Get recent changepoints with optional filters"""
         query = self.db.query(DriftChangePoint)
 

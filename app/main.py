@@ -171,9 +171,14 @@ def detect_drift():
 def get_drift_history():
     """Get historical drift detection results"""
     try:
+        model_version = request.args.get('model_version')
+
+        if not model_version:
+            return jsonify({'error': 'Model version is required'}), 400
+
         hours = request.args.get('hours', default=168, type=int)
         metric = request.args.get('metric', default=None, type=str)
-        model_version = request.args.get(model_version, default=None, type=str)
+        
 
         db = next(get_db())
         drift_repo = DriftRepository(db)
