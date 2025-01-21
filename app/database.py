@@ -2,6 +2,8 @@ from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
+from app.database_base import Base
+from app.repositories.drift_repository import DriftChangePoint
 import os
 
 #create db url
@@ -15,8 +17,7 @@ engine = create_engine(
 #create sessionmaker
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-#create base class for session models
-Base = declarative_base()
+
 
 class Prediction(Base):
     """Model for storing sentiment predictions"""

@@ -24,7 +24,7 @@ class PredictionResponse(BaseModel):
     text: str
     sentiment: str = Field(..., description="Predicted sentiment (+/-)")
     confidence: float = Field(..., ge=0, le=1, description= "Model confidence score")
-    model_version: str = Field(default='v1', description='Model version')
+    model_version: str = Field(..., description='Model version identifier')
 
     model_config = {
             "json_schema_extra": {
