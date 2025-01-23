@@ -4,12 +4,21 @@ import torch
 from datetime import datetime, timedelta
 from schemas.validation import PredictionRequest, PredictionResponse
 from utils.logging_config import setup_logging
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 from app.database import init_db, get_db
 from app.repositories.prediction_repository import PredictionRepository
 from app.monitoring.drift import BayesianDriftDetector
 from app.schemas.monitoring import DriftDetectionRequest, ChangePointResponse
 from app.repositories.drift_repository import DriftRepository
+from app.monitoring.metrics import MetricsTracker
+import time
 from pydantic import ValidationError
+
+MODEL_CONFIG = {
+    "version": "v1",
+    "name": "distilbert/distilbert-base-uncased-finetuned-sst-2-english",
+    "revision": "714eb0f"
+}
 
 app = Flask(__name__)
 logger = setup_logging()
@@ -17,10 +26,11 @@ logger = setup_logging()
 #initialize database
 init_db()
 
-#init model / TODO: revise for production
+#init model
+# TODO: revise for production
 sentiment_analyzer = pipeline("sentiment-analysis",
-    model="distilbert/distilbert-base-uncased-finetuned-sst-2-english",
-    revision="714eb0f")
+    model=MODEL_CONFIG["name"],
+    revision=MODEL_CONFIG["revision"])
 
 #env test endpoints
 
@@ -34,11 +44,17 @@ def health_check():
     logger.info("Health check", extra={'status': status})
     return jsonify(status)
 
+@app.route('/metrics', methods=['GET'])
+def metrics():
+    """Endpoint for exposing Prometheus metrics"""
+    return generate_latest(), 200, {'Content-Type': CONTENT_TYPE_LATEST}
+
 
 @app.route('/predict', methods=['POST'])
 def predict():
     """Endpoint for sentiment analysis predictions"""
     try:
+        start_time = time.time()
         try:
             #validate request data
             request_data = PredictionRequest(**request.json)
@@ -55,7 +71,17 @@ def predict():
         response = PredictionResponse(
             text=request_data.text,
             sentiment=result[0]['label'],
-            confidence=result[0]['score']
+            confidence=result[0]['score'],
+            model_version=MODEL_CONFIG['version']
+        )
+
+        #track metrics
+        latency = time.time() - start_time
+        MetricsTracker.track_prediction(
+            model_version=response.model_version,
+            sentiment=response.sentiment,
+            confidence=response.confidence,
+            latency=latency
         )
 
         #store prediction in database
@@ -147,6 +173,19 @@ def detect_drift():
         #run detection
         sentiment_changes = detector.detect_sentiment_drift(predictions)
         confidence_changes = detector.detect_confidence_drift(predictions)
+
+        #track drift detection metrics
+        drift_types = {}
+        if sentiment_changes:
+            drift_types['sentiment'] = len(sentiment_changes)
+        if confidence_changes:
+            drift_types['confidence'] = len(confidence_changes)
+
+        MetricsTracker.track_drift_detection(
+            model_version=request_data.model_version,
+            detected_drifts=len(sentiment_changes) + len(confidence_changes),
+            drift_types=drift_types
+        )
 
         #save results
         all_changes = []

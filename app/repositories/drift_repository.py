@@ -31,7 +31,7 @@ class DriftRepository:
                          metric: str,
                          before_params: dict,
                          after_params: dict,
-                         model_version: Optional[str] = None) -> DriftChangePoint:
+                         model_version: str = None) -> DriftChangePoint:
             """Save a detected changepoint"""
             changepoint = DriftChangePoint(
                  timestamp=timestamp,
@@ -47,9 +47,10 @@ class DriftRepository:
             return changepoint
 
     def get_recent_changepoints(self,
-                                hours: int = 168, #prior week
-                                metric: Optional[str] = None,
-                                model_version: str = None) -> List[DriftChangePoint]:
+                                metric: str,
+                                model_version: str,
+                                hours: int = 168) -> List[DriftChangePoint]:
+    
         """Get recent changepoints with optional filters"""
         query = self.db.query(DriftChangePoint)
 
