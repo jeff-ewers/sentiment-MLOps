@@ -4,6 +4,7 @@ import torch
 from datetime import datetime, timedelta
 from schemas.validation import PredictionRequest, PredictionResponse
 from utils.logging_config import setup_logging
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 from app.database import init_db, get_db
 from app.repositories.prediction_repository import PredictionRepository
 from app.monitoring.drift import BayesianDriftDetector
@@ -25,7 +26,8 @@ logger = setup_logging()
 #initialize database
 init_db()
 
-#init model / TODO: revise for production
+#init model
+# TODO: revise for production
 sentiment_analyzer = pipeline("sentiment-analysis",
     model=MODEL_CONFIG["name"],
     revision=MODEL_CONFIG["revision"])
@@ -41,6 +43,11 @@ def health_check():
     }
     logger.info("Health check", extra={'status': status})
     return jsonify(status)
+
+@app.route('/metrics', methods=['GET'])
+def metrics():
+    """Endpoint for exposing Prometheus metrics"""
+    return generate_latest(), 200, {'Content-Type': CONTENT_TYPE_LATEST}
 
 
 @app.route('/predict', methods=['POST'])
