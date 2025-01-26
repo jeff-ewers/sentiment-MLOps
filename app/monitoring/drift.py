@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from scipy import stats
 from sqlalchemy.orm import Session
-from app.database import Prediction
+from app.database.models import Prediction
 
 @dataclass
 class ChangePoint:

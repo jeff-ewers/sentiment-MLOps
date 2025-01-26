@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session 
 from datetime import datetime, timedelta
 from typing import List, Optional
-from app.database import Prediction
+from app.database.models import Prediction
 
 class PredictionRepository:
     """Repository for handling prediction DB operations"""

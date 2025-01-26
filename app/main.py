@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from schemas.validation import PredictionRequest, PredictionResponse
 from utils.logging_config import setup_logging
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-from app.database import init_db, get_db
+from app.database.models import init_db, get_db
 from app.repositories.prediction_repository import PredictionRepository
 from app.monitoring.drift import BayesianDriftDetector
 from app.schemas.monitoring import DriftDetectionRequest, ChangePointResponse
