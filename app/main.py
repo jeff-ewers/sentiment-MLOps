@@ -258,13 +258,25 @@ def generate_test_data():
                 days=random.uniform(0,3),
                 hours=random.uniform(0,24)
             )
+
+            #generate consistent sentiment and confidence
+            confidence = random.uniform(0.8, 0.99)
+            is_positive = random.random() < 0.8
+            sentiment = 'POSITIVE' if is_positive else 'NEGATIVE'
+
             repo.create_prediction(
                 text=f"Sample text {i}",
-                sentiment="POSITIVE" if random.random() < 0.8 else "NEGATIVE",
-                confidence=random.uniform(0.8, 0.99),
+                sentiment=sentiment,
+                confidence=confidence,
                 model_version="v1",
-                raw_model_output={"score": 0.9},
-                request_metadata={"timestamp": time.isoformat()}
+                raw_model_output={
+                    "label": sentiment,
+                    "score": confidence,
+                    "labels": ["POSITIVE", "NEGATIVE"],
+                    "scores": [confidence if is_positive else 1-confidence, 1-confidence if is_positive else confidence]
+                },
+                request_metadata={"timestamp": time.isoformat()},
+                created_at=time
             )
         #next 4 days - SIMULATED DRIFT
         for i in range(100):
@@ -272,16 +284,34 @@ def generate_test_data():
                 days=random.uniform(3,7),
                 hours=random.uniform(0,24)
             )
+
+            #generate consistent sentiment and confidence
+            confidence = random.uniform(0.8, 0.99)
+            is_positive = random.random() < 0.2 #flipped ratio for drift
+            sentiment = 'POSITIVE' if is_positive else 'NEGATIVE'
+
             repo.create_prediction(
                 text=f"Sample text {i}",
-                sentiment="NEGATIVE" if random.random() < 0.8 else "POSITIVE",
-                confidence=random.uniform(0.8, 0.99),
+                sentiment=sentiment,
+                confidence=confidence,
                 model_version="v1",
-                raw_model_output={"score": 0.9},
-                request_metadata={"timestamp": time.isoformat()}
+                raw_model_output={
+                    "label": sentiment,
+                    "score": confidence,
+                    "labels": ["POSITIVE", "NEGATIVE"],
+                    "scores": [confidence if is_positive else 1-confidence, 1-confidence if is_positive else confidence]
+                },
+                request_metadata={"timestamp": time.isoformat()},
+                created_at=time
             )
+
         
-        return jsonify("message": "Generated 200 test predictions with drift pattern")
+        return jsonify({
+            "message": "Generated 200 test predictions with drift pattern",
+            "details": {
+                "first_period": "0-3 days: 80% POSITIVE",
+                "second_period": "3-7 days: 80% NEGATIVE"
+            }})
     
     except Exception as e:
         logger.exception("Error generating test data")
