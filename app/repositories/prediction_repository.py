@@ -15,7 +15,8 @@ class PredictionRepository:
                           confidence: float,
                           model_version: str,
                           raw_model_output: dict = None,
-                          request_metadata: dict = None) -> Prediction:
+                          request_metadata: dict = None,
+                          created_at: datetime = None) -> Prediction:
         """Create a new prediction record"""
         db_prediction = Prediction(
             text=text,
@@ -23,7 +24,8 @@ class PredictionRepository:
             confidence=confidence,
             model_version=model_version,
             raw_model_output=raw_model_output,
-            request_metadata=request_metadata
+            request_metadata=request_metadata,
+            created_at=created_at or datetime.utcnow()
         )
         self.db.add(db_prediction)
         self.db.commit()
