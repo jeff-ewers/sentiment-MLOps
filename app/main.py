@@ -12,6 +12,7 @@ from app.schemas.monitoring import DriftDetectionRequest, ChangePointResponse
 from app.repositories.drift_repository import DriftRepository
 from app.monitoring.metrics import MetricsTracker
 import time
+import random
 from pydantic import ValidationError
 
 MODEL_CONFIG = {
@@ -239,6 +240,51 @@ def get_drift_history():
 
     except Exception as e:
         logger.exception("Error fetching drift history")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/test/generate-data', methods=['POST'])
+def generate_test_data():
+    """Generate test data with known drift patterns"""
+    try:
+        db = next(get_db())
+        repo = PredictionRepository(db)
+
+        #generate data over past week
+        base_time = datetime.utcnow() - timedelta(days=7)
+
+        #first 3 days - mostly POSITIVE
+        for i in range(100):
+            time = base_time + timedelta(
+                days=random.uniform(0,3),
+                hours=random.uniform(0,24)
+            )
+            repo.create_prediction(
+                text=f"Sample text {i}",
+                sentiment="POSITIVE" if random.random() < 0.8 else "NEGATIVE",
+                confidence=random.uniform(0.8, 0.99),
+                model_version="v1",
+                raw_model_output={"score": 0.9},
+                request_metadata={"timestamp": time.isoformat()}
+            )
+        #next 4 days - SIMULATED DRIFT
+        for i in range(100):
+            time = base_time + timedelta(
+                days=random.uniform(3,7),
+                hours=random.uniform(0,24)
+            )
+            repo.create_prediction(
+                text=f"Sample text {i}",
+                sentiment="NEGATIVE" if random.random() < 0.8 else "POSITIVE",
+                confidence=random.uniform(0.8, 0.99),
+                model_version="v1",
+                raw_model_output={"score": 0.9},
+                request_metadata={"timestamp": time.isoformat()}
+            )
+        
+        return jsonify("message": "Generated 200 test predictions with drift pattern")
+    
+    except Exception as e:
+        logger.exception("Error generating test data")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
