@@ -23,7 +23,7 @@ class Experiment(Base):
     updated_at = Column(DateTime, default=datetime.utcnow(), onupdate=datetime.utcnow())
     start_date = Column(DateTime, nullable=True)
     end_date = Column(DateTime, nullable=True)
-    metadata = Column(JSON, nullable=True)
+    
 
     #statistical configuration
     minimum_sample_size = Column(Integer, nullable=False, default=1000)
@@ -31,7 +31,7 @@ class Experiment(Base):
 
     #relationships
     variants = relationship("ExperimentVariant", back_populates="experiment", cascade="all, delete-orphan")
-    assignments = relationship("ExperimentAssignment", back_populates="experiment", cascade="all, delete-orphan")
+    
 
 class ExperimentVariant(Base):
     """Model for experiment variants/treatment"""
@@ -47,21 +47,5 @@ class ExperimentVariant(Base):
 
     #relationships
     experiment = relationship("Experiment", back_populates="variants")
-    assignments = relationship("ExperimentAssignment", back_populates="variant", cascade="all, delete-orphan")
     predictions = relationship("Prediction", back_populates="variant")
 
-class ExperimentAssignment(Base):
-    """Model for tracking which users/requests get which variants"""
-    __tablename__ = "experiment_assignments"
-
-    id = Column(Integer, primary_key=True, index=True)
-    experiment_id = Column(Integer, ForeignKey("experiments.id"), nullable=False)
-    variant_id = Column(Integer, ForeignKey("experiment_variants.id"), nullable=False)
-    #TODO: Add user identification/tracking user_id = Column(Integer, nullable=False)
-    session_id = Column(String, nullable=False)
-    assigned_at = Column(DateTime, default=datetime.utcnow())
-    metadata = Column(JSON, nullable=True)
-
-    #relationships
-    experiment = relationship("Experiment", back_populates="assignments")
-    variant = relationship("ExperimentVariant", back_populates="assignments")
