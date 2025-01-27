@@ -77,5 +77,48 @@ class ExperimentRepository:
             self.db.refresh(experiment)
         return experiment
     
-
+    def get_active_variant(self, experiment_id: int) -> Optional[ExperimentVariant]:
+        """Get a random variant based on traffic allocation"""
+        experiment = self.get_experiment(experiment_id)
+        if not experiment or experiment.status != ExperimentStatus.RUNNING:
+            return None
         
+        #random assignment based on traffic percentages
+        random_value = random.random()
+        cumulative_prob = 0
+
+        for variant in experiment.variants:
+            cumulative_prob += variant.traffic_percentage
+            if random_value <= cumulative_prob:
+                return variant
+        
+        return experiment.variants[0] #fallback to first
+    
+    def get_experiment_results(self, experiment_id: int) -> Dict:
+        """Get statistical results for an experiment"""
+        experiment = self.get_experiment(experiment_id)
+        if not experiment:
+            return None
+
+        results = {
+            'experiment_id': experiment_id,
+            'name': experiment.name,
+            'status': experiment.status,
+            'start_date': experiment.start_date,
+            'variants': []
+        }
+
+        for variant in experiment.variants:
+            variant_metrics = {
+                'name': variant.name,
+                'is_control': variant.is_control,
+                'traffic_percentage': variant.traffic_percentage,
+                'predictions': {
+                    'total': len(variant.predictions),
+                    'positive_ratio': sum(1 for p in variant.predictions if p.sentiment == 'POSITIVE') / len(variant.predictions) if variant.predictions else 0,
+                    'confidence': sum(p.confidence for p in variant.predictions) / len(variant.predictions) if variant.predictions else 0
+                }
+            }
+            results['variants'].append(variant_metrics)
+
+        return results
