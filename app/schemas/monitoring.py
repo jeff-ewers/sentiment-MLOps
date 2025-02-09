@@ -29,3 +29,11 @@ class DriftDetectionRequest(BaseModel):
         default=None,
         description="Specific model version to analyze"
     )
+    start_time: Optional[datetime] = Field(
+        default=None,
+        description="Start time for analysis (defaults to window_size_hours*2 before end_time)"
+    )
+    end_time: Optional[datetime] = Field(
+        default=None,
+        description="End time for analysis (defaults to current time)"
+    )

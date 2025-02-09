@@ -152,6 +152,14 @@ def detect_drift():
     """Endpoint to run drift detection analysis"""
     try:
         request_data = DriftDetectionRequest(**request.json)
+        end_time = request_data.end_time or datetime.utcnow()
+        start_time = request_data.start_time
+
+        if start_time is None:
+            #default to 2x window size before end_time
+            start_time = end_time - timedelta(hours=request_data.window_size_hours * 2)
+
+        logger.info(f"Analyzing drift from {start_time} to {end_time}...")
 
         #get predictions for analysis
         db = next(get_db())
@@ -167,8 +175,8 @@ def detect_drift():
         #get predictions for analysis window
         analysis_window = request_data.window_size_hours * 2 # x2 for before/after
         predictions = pred_repo.get_predictions_by_timeframe(
-            start_time=datetime.utcnow() - timedelta(hours=analysis_window),
-            end_time=datetime.utcnow()
+            start_time=start_time,
+            end_time=end_time
         )
 
         #run detection
