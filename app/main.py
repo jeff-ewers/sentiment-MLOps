@@ -5,13 +5,14 @@ from datetime import datetime, timedelta
 from schemas.validation import PredictionRequest, PredictionResponse
 from utils.logging_config import setup_logging
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-from app.database import init_db, get_db
+from app.database.models import init_db, get_db
 from app.repositories.prediction_repository import PredictionRepository
 from app.monitoring.drift import BayesianDriftDetector
 from app.schemas.monitoring import DriftDetectionRequest, ChangePointResponse
 from app.repositories.drift_repository import DriftRepository
 from app.monitoring.metrics import MetricsTracker
 import time
+import random
 from pydantic import ValidationError
 
 MODEL_CONFIG = {
@@ -151,6 +152,14 @@ def detect_drift():
     """Endpoint to run drift detection analysis"""
     try:
         request_data = DriftDetectionRequest(**request.json)
+        end_time = request_data.end_time or datetime.utcnow()
+        start_time = request_data.start_time
+
+        if start_time is None:
+            #default to 2x window size before end_time
+            start_time = end_time - timedelta(hours=request_data.window_size_hours * 2)
+
+        logger.info(f"Analyzing drift from {start_time} to {end_time}...")
 
         #get predictions for analysis
         db = next(get_db())
@@ -166,8 +175,8 @@ def detect_drift():
         #get predictions for analysis window
         analysis_window = request_data.window_size_hours * 2 # x2 for before/after
         predictions = pred_repo.get_predictions_by_timeframe(
-            start_time=datetime.utcnow() - timedelta(hours=analysis_window),
-            end_time=datetime.utcnow()
+            start_time=start_time,
+            end_time=end_time
         )
 
         #run detection
@@ -239,6 +248,81 @@ def get_drift_history():
 
     except Exception as e:
         logger.exception("Error fetching drift history")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/test/generate-data', methods=['POST'])
+def generate_test_data():
+    """Generate test data with known drift patterns"""
+    try:
+        db = next(get_db())
+        repo = PredictionRepository(db)
+
+        #generate data over past week
+        base_time = datetime.utcnow() - timedelta(days=7)
+
+        #first 3 days - mostly POSITIVE
+        for i in range(100):
+            time = base_time + timedelta(
+                days=random.uniform(0,3),
+                hours=random.uniform(0,24)
+            )
+
+            #generate consistent sentiment and confidence
+            confidence = random.uniform(0.8, 0.99)
+            is_positive = random.random() < 0.8
+            sentiment = 'POSITIVE' if is_positive else 'NEGATIVE'
+
+            repo.create_prediction(
+                text=f"Sample text {i}",
+                sentiment=sentiment,
+                confidence=confidence,
+                model_version="v1",
+                raw_model_output={
+                    "label": sentiment,
+                    "score": confidence,
+                    "labels": ["POSITIVE", "NEGATIVE"],
+                    "scores": [confidence if is_positive else 1-confidence, 1-confidence if is_positive else confidence]
+                },
+                request_metadata={"timestamp": time.isoformat()},
+                created_at=time
+            )
+        #next 4 days - SIMULATED DRIFT
+        for i in range(100):
+            time = base_time + timedelta(
+                days=random.uniform(3,7),
+                hours=random.uniform(0,24)
+            )
+
+            #generate consistent sentiment and confidence
+            confidence = random.uniform(0.8, 0.99)
+            is_positive = random.random() < 0.2 #flipped ratio for drift
+            sentiment = 'POSITIVE' if is_positive else 'NEGATIVE'
+
+            repo.create_prediction(
+                text=f"Sample text {i}",
+                sentiment=sentiment,
+                confidence=confidence,
+                model_version="v1",
+                raw_model_output={
+                    "label": sentiment,
+                    "score": confidence,
+                    "labels": ["POSITIVE", "NEGATIVE"],
+                    "scores": [confidence if is_positive else 1-confidence, 1-confidence if is_positive else confidence]
+                },
+                request_metadata={"timestamp": time.isoformat()},
+                created_at=time
+            )
+
+        
+        return jsonify({
+            "message": "Generated 200 test predictions with drift pattern",
+            "details": {
+                "first_period": "0-3 days: 80% POSITIVE",
+                "second_period": "3-7 days: 80% NEGATIVE"
+            }})
+    
+    except Exception as e:
+        logger.exception("Error generating test data")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

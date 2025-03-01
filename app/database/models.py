@@ -1,8 +1,8 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, JSON
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, JSON, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
-from app.database_base import Base
+from app.database.base import Base
 from app.repositories.drift_repository import DriftChangePoint
 import os
 
@@ -31,6 +31,10 @@ class Prediction(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     raw_model_output = Column(JSON)
     request_metadata = Column(JSON)
+    experiment_variant_id = Column(Integer, ForeignKey("experiment_variants.id"), nullable=True)
+
+    #relationships
+    variant = relationship("ExperimentVariant", back_populates="predictions")
 
 #fx to get db session
 def get_db():

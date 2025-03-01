@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from scipy import stats
 from sqlalchemy.orm import Session
-from app.database import Prediction
+from app.database.models import Prediction
 
 @dataclass
 class ChangePoint:
@@ -30,10 +30,14 @@ class BayesianDriftDetector:
         Bayesian inference with Beta conjugate priors
         """
         if not predictions:
+            print("No predictions provided")
             return []
         
         #sort predictions by timestamp
         sorted_preds = sorted(predictions, key=lambda x: x.created_at)
+        #DEBUG
+        print(f"Total predictions to analyze: {len(sorted_preds)}")
+        print(f"Date range from {sorted_preds[0].created_at} to {sorted_preds[-1].created_at}")
 
         #init changepoints list
         changepoints: List[ChangePoint] = []
@@ -46,10 +50,30 @@ class BayesianDriftDetector:
             #get predictions in current window
             window_preds = [p for p in sorted_preds
                             if window_start <= p.created_at < window_end]
+            #DEBUG
+            print(f"\nWindow {window_start} to {window_end}:")
+            print(f"Samples in window: {len(window_preds)}")
             
             if len(window_preds) < 50: #check for minimum sample size
-                window_start += self.window_size
-                continue
+                #DEBUG
+                print(f"Insufficient samples in window")
+                break
+
+            #check next window
+            next_window_end = window_end + self.window_size
+            next_window_preds = [p for p in sorted_preds
+                                 if window_end <= p.created_at < next_window_end]
+
+            print(f"Next window samples: {len(next_window_preds)}")
+
+            if len(next_window_preds) < 50: #check for minimum sample size in window or next
+                print(f"Insufficient samples in next window. Current: {len(window_preds)}, Next: {len(next_window_preds)}")
+                #Only continue if we have more completed windows ahead
+                break
+
+            #DEBUG - calculate positive rates for debugging
+            positive_rate = sum(1 for p in window_preds if p.sentiment == 'POSITIVE') / len(window_preds)
+            print(f"Positive rate in window: {positive_rate:.2f}")
 
             #calculate prior parameters (Beta distribution)
             prior_positive = sum(1 for p in window_preds
@@ -59,15 +83,6 @@ class BayesianDriftDetector:
             #prior parameters (Beta(alpha, beta))
             alpha_prior = prior_positive + 1 #add 1 for Laplace smoothing
             beta_prior = prior_negative + 1
-
-            #check next window
-            next_window_end = window_end + self.window_size
-            next_window_preds = [p for p in sorted_preds
-                                 if window_end <= p.created_at < next_window_end]
-            
-            if len(next_window_preds) < 50: #check for minimum sample size
-                window_start += self.window_size
-                continue
 
             #calculate posterior parameters
             post_positive = sum(1 for p in next_window_preds
@@ -84,6 +99,11 @@ class BayesianDriftDetector:
 
             #calculate probability of change
             change_prob = self.calculate_change_probability(prior_dist, post_dist)
+
+            #DEBUG
+            print(f"Prior window positive rate: {prior_positive / len(window_preds):.2f}")
+            print(f"Next window positive rate: {post_positive / len(next_window_preds):.2f}")
+            print(f"Change probability: {change_prob:.3f}")
 
             if change_prob >= self.min_probability:
                 changepoints.append(
@@ -113,7 +133,11 @@ class BayesianDriftDetector:
         """Calculate probability distribution using Monte Carlo"""
         prior_samples = prior_dist.rvs(n_samples)
         post_samples = post_dist.rvs(n_samples)
-        return np.mean(post_samples > prior_samples)
+
+        if np.mean(post_samples) < np.mean(prior_samples):
+            return np.mean(prior_samples > post_samples)
+        else:
+            return np.mean(post_samples > prior_samples)
 
     def detect_confidence_drift(self, 
                                 predictions: List[Prediction]) -> List[ChangePoint]:
